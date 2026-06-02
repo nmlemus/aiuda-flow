@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "aiuda-flow"
+version = "0.1.0"
+description = "Portable GenAI workflow orchestration — LangGraph + Arize Phoenix"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+keywords = ["langgraph", "ai", "agents", "observability", "arize", "phoenix"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+]
+dependencies = [
+    "langgraph>=0.2",
+    "langchain-core>=0.2",
+    "langchain-anthropic>=0.1",
+    "arize-phoenix>=5.0",
+    "arize-phoenix-otel>=0.3",
+    "openinference-instrumentation-langchain>=0.1",
+    "opentelemetry-sdk>=1.20",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "sse-starlette>=1.6",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+mcp = ["mcp>=1.0"]
+dev = ["pytest>=8", "httpx>=0.27", "pytest-asyncio>=0.23"]
+
+[project.scripts]
+aiuda-flow = "aiuda_flow.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["aiuda_flow*"]
