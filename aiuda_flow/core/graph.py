@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Any, Optional, Type
 from langgraph.graph import StateGraph, END
 from .node import Node
@@ -65,3 +66,32 @@ class Graph:
     @property
     def compiled(self):
         return self._build()
+
+    @classmethod
+    def from_skills_dir(cls, directory: str | Path, state_schema: Type = BaseState) -> "Graph":
+        """
+        Build a Graph from all skill files in a directory.
+        Files are loaded alphabetically and chained in sequence.
+        """
+        from ..skills.loader import SkillLoader
+        from ..skills.node import SkillNode
+
+        specs = SkillLoader.from_dir(directory)
+        if not specs:
+            raise ValueError(f"No skill files found in: {directory}")
+
+        g = cls(state_schema)
+        for spec in specs:
+            g.add(SkillNode(spec))
+        return g
+
+    @classmethod
+    def from_skill_file(cls, path: str | Path, state_schema: Type = BaseState) -> "Graph":
+        """Build a single-node Graph from a skill file."""
+        from ..skills.loader import SkillLoader
+        from ..skills.node import SkillNode
+
+        spec = SkillLoader.from_file(path)
+        g = cls(state_schema)
+        g.add(SkillNode(spec))
+        return g
