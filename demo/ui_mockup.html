@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>aiuda-flow — GenAI Orchestration</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d2e;
+    --surface2: #242738;
+    --border: #2e3150;
+    --accent: #f97316;
+    --blue: #6366f1;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --text: #e2e8f0;
+    --muted: #64748b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
+
+  nav {
+    display: flex; align-items: center; gap: 16px;
+    padding: 12px 24px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; color: var(--accent); }
+  .logo-icon {
+    width: 30px; height: 30px; background: var(--accent)22;
+    border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px;
+  }
+  nav .spacer { flex: 1; }
+  .nav-pill {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--muted);
+  }
+  .nav-pill span { color: var(--green); font-weight: 600; }
+  .run-btn {
+    background: var(--accent); color: white; border: none; border-radius: 8px;
+    padding: 8px 18px; font-size: 13px; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .run-btn:hover { opacity: 0.85; }
+
+  .app { display: grid; grid-template-columns: 210px 1fr 270px; flex: 1; height: calc(100vh - 53px); overflow: hidden; }
+
+  /* SIDEBAR */
+  .sidebar { background: var(--surface); border-right: 1px solid var(--border); padding: 12px; overflow-y: auto; }
+  .sec-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); padding: 12px 8px 6px; }
+  .s-item {
+    display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+    border-radius: 8px; font-size: 13px; color: var(--muted); cursor: pointer;
+  }
+  .s-item:hover { background: var(--surface2); color: var(--text); }
+  .s-item.active { background: var(--surface2); color: var(--text); }
+  .s-dot { width: 7px; height: 7px; border-radius: 50%; margin-left: auto; }
+
+  /* CANVAS */
+  .canvas-area {
+    overflow: hidden; background: var(--bg);
+    background-image: radial-gradient(circle at 1px 1px, #1e223522 1px, transparent 0);
+    background-size: 26px 26px;
+    position: relative;
+  }
+  .canvas-inner {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 560px;
+  }
+  .flow-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; text-align: center; margin-bottom: 22px; }
+
+  .flow-row { display: flex; align-items: center; justify-content: center; }
+
+  .node {
+    background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: 14px; padding: 16px 18px; width: 145px;
+    position: relative; cursor: pointer;
+    transition: box-shadow .2s, border-color .2s;
+  }
+  .node:hover { box-shadow: 0 0 0 2px var(--accent)33; border-color: var(--accent)77; }
+  .node.active { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent)1a, 0 0 20px var(--accent)14; }
+  .node.done { border-color: var(--green)77; }
+  .node.waiting { border-color: var(--yellow)77; }
+
+  .n-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; margin-bottom: 9px; }
+  .n-icon.orange { background: var(--accent)1a; }
+  .n-icon.blue { background: var(--blue)1a; }
+  .n-icon.green { background: var(--green)1a; }
+  .n-icon.purple { background: #a855f71a; }
+
+  .n-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+  .n-type { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+
+  .n-status { position: absolute; top: 10px; right: 10px; width: 8px; height: 8px; border-radius: 50%; }
+  .n-status.done { background: var(--green); }
+  .n-status.running { background: var(--accent); animation: pulse 1.2s infinite; }
+  .n-status.waiting { background: var(--yellow); }
+  .n-status.idle { background: var(--border); }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
+
+  .edge { width: 38px; height: 2px; background: var(--border); position: relative; flex-shrink: 0; }
+  .edge::after { content:''; position:absolute; right:-1px; top:-4px; border:5px solid transparent; border-left-color:var(--border); }
+  .edge.done { background: var(--green)55; }
+  .edge.done::after { border-left-color: var(--green)55; }
+  .edge.active { background: var(--accent)88; }
+  .edge.active::after { border-left-color: var(--accent)88; }
+
+  .cond-col { display:flex; flex-direction:column; align-items:center; gap:0; margin-top:12px; }
+  .cond-line { width:2px; height:26px; background: var(--border); }
+  .cond-pill { font-size:10px; color:var(--muted); border:1px solid var(--border); border-radius:20px; padding:3px 10px; }
+
+  .flow-row2 { display:flex; justify-content:center; margin-top:0; gap:0; align-items:center; }
+
+  .trace-bar {
+    margin-top: 26px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 13px 16px; display: flex; align-items: center; gap: 14px;
+  }
+  .trace-lbl { font-size:11px; color:var(--muted); font-weight:600; }
+  .trace-steps { display:flex; gap:4px; flex:1; }
+  .t-step { height:6px; border-radius:3px; flex:1; }
+  .t-step.done { background:var(--green); }
+  .t-step.active { background:var(--accent); animation:pulse 1.2s infinite; }
+  .t-step.idle { background:var(--border); }
+  .trace-time { font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
+
+  /* RIGHT */
+  .right { background: var(--surface); border-left: 1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
+  .tabs { display:flex; border-bottom:1px solid var(--border); padding:0 16px; }
+  .tab { padding:12px 12px; font-size:12px; font-weight:600; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
+  .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+  .panel { flex:1; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:10px; }
+
+  .metrics { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+  .m-card { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:11px; }
+  .m-lbl { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:5px; }
+  .m-val { font-size:21px; font-weight:700; }
+  .m-sub { font-size:10px; color:var(--muted); margin-top:2px; }
+
+  .t-entry { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:11px; }
+  .t-head { display:flex; align-items:center; gap:8px; margin-bottom:5px; }
+  .t-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .t-node { font-size:12px; font-weight:600; }
+  .t-ms { font-size:11px; color:var(--muted); margin-left:auto; font-variant-numeric:tabular-nums; }
+  .t-body { font-size:11px; color:var(--muted); line-height:1.5; font-family:monospace; }
+
+  .bot-bar { display:flex; align-items:center; padding:9px 14px; border-top:1px solid var(--border); gap:10px; }
+  .b-item { font-size:11px; color:var(--muted); display:flex; align-items:center; gap:5px; }
+  .pill { background:var(--surface2); border-radius:4px; padding:2px 6px; font-family:monospace; color:var(--text); }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">
+    <div class="logo-icon">⬡</div>
+    aiuda-flow
+  </div>
+  <div class="spacer"></div>
+  <div class="nav-pill">adapter: <span>local</span></div>
+  <div class="nav-pill">phoenix: <span>connected</span></div>
+  <button class="run-btn" onclick="restartAnim()">▶ Run Pipeline</button>
+</nav>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="sec-label">Graphs</div>
+    <div class="s-item active">📊 research_pipeline <span class="s-dot" style="background:var(--green)"></span></div>
+    <div class="s-item">🔍 data_analysis <span class="s-dot" style="background:var(--yellow)"></span></div>
+    <div class="s-item">✍️ content_gen <span class="s-dot" style="background:var(--blue)"></span></div>
+    <div class="s-item" style="opacity:.5">+ New Graph</div>
+
+    <div class="sec-label">Adapters</div>
+    <div class="s-item active">💻 Local</div>
+    <div class="s-item">🔌 MCP</div>
+    <div class="s-item">☁️ FastAPI / Coder</div>
+    <div class="s-item">📡 SSE Bridge</div>
+
+    <div class="sec-label">Settings</div>
+    <div class="s-item">⚙️ Config</div>
+    <div class="s-item">🔑 API Keys</div>
+  </div>
+
+  <div class="canvas-area">
+    <div class="canvas-inner">
+      <div class="flow-title">research_pipeline.py</div>
+
+      <div class="flow-row">
+        <div class="node done" id="n1">
+          <div class="n-status done" id="s1"></div>
+          <div class="n-icon orange">🔍</div>
+          <div class="n-name">ResearchNode</div>
+          <div class="n-type">LLM · Web Search</div>
+        </div>
+        <div class="edge done" id="e1"></div>
+        <div class="node active" id="n2">
+          <div class="n-status running" id="s2"></div>
+          <div class="n-icon blue">🧠</div>
+          <div class="n-name">AnalysisNode</div>
+          <div class="n-type">LLM · Reasoning</div>
+        </div>
+        <div class="edge" id="e2"></div>
+        <div class="node" id="n3">
+          <div class="n-status idle" id="s3"></div>
+          <div class="n-icon green">✍️</div>
+          <div class="n-name">SynthesisNode</div>
+          <div class="n-type">LLM · Summary</div>
+        </div>
+      </div>
+
+      <div class="cond-col">
+        <div class="cond-line"></div>
+        <div class="cond-pill">conditional branch</div>
+        <div class="cond-line"></div>
+      </div>
+
+      <div class="flow-row2">
+        <div class="node waiting" id="n4" style="width:130px;">
+          <div class="n-status waiting" id="s4"></div>
+          <div class="n-icon purple">📊</div>
+          <div class="n-name">ReportNode</div>
+          <div class="n-type">Output</div>
+        </div>
+        <div style="width:42px;"></div>
+        <div class="node" id="n5" style="width:130px; opacity:.4;">
+          <div class="n-status idle"></div>
+          <div class="n-icon orange">🔁</div>
+          <div class="n-name">RetryNode</div>
+          <div class="n-type">Backtrack</div>
+        </div>
+      </div>
+
+      <div class="trace-bar">
+        <span class="trace-lbl">TRACE</span>
+        <div class="trace-steps">
+          <div class="t-step done"></div>
+          <div class="t-step active"></div>
+          <div class="t-step idle"></div>
+          <div class="t-step idle"></div>
+          <div class="t-step idle"></div>
+        </div>
+        <span class="trace-time" id="timer">3.6s</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="right">
+    <div class="tabs">
+      <div class="tab active">Traces</div>
+      <div class="tab">Metrics</div>
+      <div class="tab">State</div>
+    </div>
+    <div class="panel">
+      <div class="metrics">
+        <div class="m-card">
+          <div class="m-lbl">Runs today</div>
+          <div class="m-val" style="color:var(--blue)">12</div>
+          <div class="m-sub">↑ 3 vs yesterday</div>
+        </div>
+        <div class="m-card">
+          <div class="m-lbl">Avg latency</div>
+          <div class="m-val" style="color:var(--accent)">4.2s</div>
+          <div class="m-sub">p95: 7.1s</div>
+        </div>
+        <div class="m-card">
+          <div class="m-lbl">Success rate</div>
+          <div class="m-val" style="color:var(--green)">92%</div>
+          <div class="m-sub">1 retry today</div>
+        </div>
+        <div class="m-card">
+          <div class="m-lbl">Tokens used</div>
+          <div class="m-val" style="color:var(--blue)">48k</div>
+          <div class="m-sub">~$0.14 est.</div>
+        </div>
+      </div>
+
+      <div class="t-entry">
+        <div class="t-head">
+          <div class="t-dot" style="background:var(--green)"></div>
+          <span class="t-node">ResearchNode</span>
+          <span class="t-ms">1,234 ms</span>
+        </div>
+        <div class="t-body">
+          → query: "LangGraph observability"<br>
+          → sources: 3 fetched<br>
+          → tokens: 1,840 in / 312 out<br>
+          ✓ completed
+        </div>
+      </div>
+
+      <div class="t-entry" style="border-color:var(--accent)44">
+        <div class="t-head">
+          <div class="t-dot" style="background:var(--accent)"></div>
+          <span class="t-node">AnalysisNode</span>
+          <span class="t-ms" id="live-ms">2,400 ms…</span>
+        </div>
+        <div class="t-body">
+          → model: claude-sonnet-4-6<br>
+          → reasoning: low<br>
+          → streaming…<br>
+          <span style="color:var(--accent)">⚡ running</span>
+        </div>
+      </div>
+
+      <div class="t-entry" style="opacity:.4">
+        <div class="t-head">
+          <div class="t-dot" style="background:var(--border)"></div>
+          <span class="t-node">SynthesisNode</span>
+          <span class="t-ms">—</span>
+        </div>
+        <div class="t-body">waiting…</div>
+      </div>
+    </div>
+
+    <div class="bot-bar">
+      <div class="b-item">adapter <span class="pill">local</span></div>
+      <div class="b-item">phoenix <span class="pill" style="color:var(--green)">✓ on</span></div>
+      <div class="b-item" style="margin-left:auto">v0.1.0</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let elapsed = 3.6;
+  const timerEl = document.getElementById('timer');
+  const liveMsEl = document.getElementById('live-ms');
+
+  setInterval(() => {
+    elapsed += 0.1;
+    timerEl.textContent = elapsed.toFixed(1) + 's';
+    const ms = Math.round((elapsed - 1.2) * 1000);
+    liveMsEl.textContent = ms.toLocaleString() + ' ms…';
+  }, 100);
+
+  function restartAnim() {
+    elapsed = 0;
+  }
+
+  document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>
